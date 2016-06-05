@@ -1,11 +1,11 @@
-* Advanced Topics in Decision Theory
+# Advanced Topics in Decision Theory
 
-** Linear Least Squares
+## Linear Least Squares
 
 - Initial analysis
 - Data set generation
 - Feature selection
 
-** Graphical Gaussian Model
+## Graphical Gaussian Model
 
-** Vine Copula 
+## Vine Copula 
