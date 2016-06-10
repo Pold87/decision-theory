@@ -25,9 +25,10 @@ set.seed(100)
 u1 = rCopula(500,normalCopula(coef(fit.cop),dim=2))
 points(u1[,1],u1[,2],col="red")
 
-pairs.panels(X)
+pairs.copuladata(X.cop)
 
-u <- X.cop.df[,3]
-v <- X.cop.df[,5]
-selectedCopula <- BiCopSelect(u,v,familyset=NA)
-selectedCopula
+
+RVC <- RVineStructureSelect(X.cop)
+
+RVineTreePlot(data=NULL, RVM=RVC, tree=2,
+              edge.labels=c("family","theotau"))
