@@ -4,7 +4,7 @@ clear, clc;
 m = 300;
 
 % Name of map image
-map_name = 'beautiful_img';
+map_name = 'pencils';
 
 p = sprintf('/home/pold/Documents/Internship/map_evaluation/%s', map_name);
 

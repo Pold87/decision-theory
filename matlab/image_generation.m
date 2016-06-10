@@ -35,7 +35,7 @@ for x = 1:640
 end
 
 I = uint8(I);
-%I(:, :, 1) = gray;
+I(:, :, 1) = gray;
 
 imshow(I);
-%saveas(gcf, 'beatiful_img.png')
+imwrite(I, 'beatiful_img.png')
