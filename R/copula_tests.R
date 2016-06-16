@@ -2,13 +2,13 @@ require(copula)
 require(VineCopula)
 
 ## Read R, G, B data and corresponding x, y-positions
-X <- read.csv("../sample_data.csv", header = T)
+X <- read.csv("../data/sample_data_fixed.csv", header = T)
 
 ## Rank data (i.e., convert to CDF)
 X.cop.df <- pobs(as.matrix(X), ties.method = 'random')
 
 ## Convert to a copuladata object  (as used by the Vine Copula package)
-X.cop <- as.copuladata(X.cop.df[,c(3, 5)])
+X.cop <- as.copuladata(X.cop.df)
 
 # Normal copula
 normal.cop <- normalCopula(dim=2)
@@ -27,8 +27,8 @@ points(u1[,1],u1[,2],col="red")
 
 pairs.copuladata(X.cop)
 
+RVC <- RVineStructureSelect(X.cop, familyset = c(1))
 
-RVC <- RVineStructureSelect(X.cop)
+plot(RVC, edge.labels=c("family","theotau"), type=2)
 
-RVineTreePlot(data=NULL, RVM=RVC, tree=2,
-              edge.labels=c("family","theotau"))
+contour(RVC)
