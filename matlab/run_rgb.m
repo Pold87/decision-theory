@@ -74,6 +74,3 @@ y1 = ksdensity(y,v1,'function','icdf');
 figure;
 scatterhist(x1,y1)
 set(get(gca,'children'),'marker','.')
-
-
-    

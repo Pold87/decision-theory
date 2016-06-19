@@ -4,7 +4,6 @@ library(Rgraphviz)
 library(VineCopula)
 library(psych)
 
-
 # Compare two Graphical models
 comparemodels <- function(m1,m2) {
      lrt <- m2$fitinfo$dev - m1$fitinfo$dev
@@ -121,3 +120,5 @@ E_b_given_a <- MS$mu_b + VS$V_ba %*% solve(VS$V_aa) %*% (x_a - MS$mu_a)
 
 ## Variance given R, G, B
 var_b_given_a <- VS$V_bb - VS$V_ba %*% solve(VS$V_aa) %*% VS$V_ab
+
+

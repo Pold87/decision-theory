@@ -13,7 +13,7 @@ S.X <- cov.wt(X, method = "ML")$cov
 K.X <- solve(S.X)
 
 ## Empiricial correlation matrix
-C.X <- cor(X)
+C.X <- cor(X.train)
 
 ## Empiricial inverse correlation matrix
 IC.X <- solve(C.X)
@@ -24,4 +24,3 @@ PC.X <- cov2pcor(S.X)
 
 ## Check data
 round(100 * PC.X)
-
