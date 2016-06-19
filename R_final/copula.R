@@ -3,14 +3,16 @@ require(VineCopula)
 require(matlab)
 require(psych)
 require(lattice)
+source('extract_rgb.R')
+require(mefa)
 
 read.from.csv <- TRUE
 
 ## Read data (R, G, B, x, y)
 if (read.from.csv) {
-    all.vals <- read.csv('data_stripes.csv')
+  all.vals <- read.csv('data_stripes.csv')
 } else {
-    all.vals <- extract.rgb('rainbow2', write2csv = T)
+  all.vals <- extract.rgb('rainbow2', write2csv = T)
 }
 
 # Create training and test indices
@@ -63,16 +65,16 @@ bicops <- list()
 ## Tree 1
 ## Iterate over family matrix
 for (i in 1:(ncol(rvm$family) - 1)) {
-    print(i)
-    ## Construct copula
-    cop <- BiCop(rvm$family[nrow(rvm$family), i],
-                 par = rvm$par[nrow(rvm$family), i],
-                 par2 = rvm$par2[nrow(rvm$family), i])
-    fn <- sprintf("copula_plots/%d.pdf", i)
-    bicops[[i]] <- cop
-    pdf(fn)
-    plot(cop, size=40)
-    dev.off()
+  print(i)
+  ## Construct copula
+  cop <- BiCop(rvm$family[nrow(rvm$family), i],
+               par = rvm$par[nrow(rvm$family), i],
+               par2 = rvm$par2[nrow(rvm$family), i])
+  fn <- sprintf("copula_plots/%d.pdf", i)
+  bicops[[i]] <- cop
+  pdf(fn)
+  plot(cop, size=40)
+  dev.off()
 }
 
 i = 1
@@ -97,36 +99,11 @@ dev.off()
 
 ## Make predictions
 
-## Construct conditional copula
-## This function takes a measurement R,G,B and creates a data frame for all possible
-## x, y combinations
-construct.conditional.df <- function(R, G, B, x.max=640, y.max=480) {
-    xy <- expand.grid(1:x.max, 1:y.max)
-    xy.df <- data.frame(pobs(as.matrix(xy), ties.method = 'random'))
-    R.all <- rep(R, nrow(xy))
-    G.all <- rep(G, nrow(xy))
-    B.all <- rep(B, nrow(xy))
-    xy.df$R <- R.all
-    xy.df$G <- G.all
-    xy.df$B <- B.all
-    colnames(xy.df) <- c("x", "y", "R", "G", "B")
-    xy.df <- xy.df[c("R", "G", "B", "x", "y")]
-    return(xy.df)
-}
-
-
 construct.img <- function(val, x.max=640, y.max=480) {
-    dim(val) <- c(x.max, y.max)
-    return(val)
+  dim(val) <- c(x.max, y.max)
+  return(val)
 }
 
-
-R <- 0.6
-G <- 0.820
-B <- 0.340
-df <- construct.conditional.df(R, G, B)
-val <- RVinePDF(df, rvm)
-img <- construct.img(val)
 imagesc(img)
 
 
@@ -139,11 +116,24 @@ xy <- expand.grid(1:x.max, 1:y.max)
 xy.df <- data.frame(pobs(as.matrix(xy), ties.method = 'random'))
 
 for (i in 1:N.test) {
-    RGB <- X.test.cop[i, c("R", "G", "B")]
-    cols <- rep(RGB, nrow(xy))
-    mesh <- cbind(cols, xy.df)
-    colnames(mesh) <- c("x", "y", "R", "G", "B")
-    #df <- construct.conditional.df(RGB)
-    val <- RVinePDF(mesh, rvm)
-    img <- construct.img(val)
+  xy.df <- data.frame(pobs(as.matrix(xy), ties.method = 'random'))
+  
+  R = X.test.cop[i, "R"]
+  G = X.test.cop[i, "G"]
+  B = X.test.cop[i, "B"]
+  
+  R.all <- rep(R, nrow(xy))
+  G.all <- rep(G, nrow(xy))
+  B.all <- rep(B, nrow(xy))
+  
+  xy.df$R <- R.all
+  xy.df$G <- G.all
+  xy.df$B <- B.all
+  
+  colnames(xy.df) <- c("x", "y", "R", "G", "B")
+  xy.df <- xy.df[c("R", "G", "B", "x", "y")]
+  
+  val <- RVinePDF(xy.df, rvm)
+  img <- construct.img(val)
 }
+
