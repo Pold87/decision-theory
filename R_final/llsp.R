@@ -1,18 +1,25 @@
 require(gRbase)
 require(gRim)
 library(stargazer)
+library(knitr)
 source('extract_rgb.R')
 
-read.from.csv <- FALSE
+read.from.csv <- TRUE
 
 ## Read data (R, G, B, x, y)
 if (read.from.csv) {
     all.vals <- read.csv('data_stripes.csv')
 } else {
-    all.vals <- extract.rgb('stripes', write2csv = T)
+    all.vals <- extract.rgb('rainbow2', write2csv = T)
 }
 
-# Create training and test indices
+all.vals$x <- all.vals$x * 640
+all.vals$y <- all.vals$y * 480
+
+## Write for reporr
+#write.csv(round(all.vals, 2), "for_report.csv", row.names=F, quote=F)
+
+## Create training and test indices
 train.idx <- 1:500
 test.idx <- 501:1000
 
@@ -21,9 +28,26 @@ X.train <- all.vals[train.idx, c("R", "G", "B")]
 X.test <- all.vals[test.idx, c("R", "G", "B")]
 Y.train <- as.matrix(all.vals[train.idx, c("x", "y")])
 Y.test <- as.matrix(all.vals[test.idx, c("x", "y")])
+all.train <- all.vals[train.idx, ]
+all.test <- all.vals[test.idx, ]
+
+## Fit using R's lm function
+model <- lm(cbind(x, y) ~ R + G + B, data=all.train)
+
+## Fit separately for POS_x and POS_y
+model.x <- lm(x ~ R + G + B, data=all.train)
+model.y <- lm(y ~ R + G + B, data=all.train)
+
+## Manual calculations of model statistics
+sigma.x <- sqrt(sum(model.x$res^2) / (500 - 4))
+sigma.y <- sqrt(sum(model.y$res^2) / (500 - 4))
+X.train.design <- as.matrix(cbind(rep(1, nrow(X.train)), X.train))
+xtxi <- solve(t(X.train.design) %*% X.train.design)
+errors.x <- sqrt(diag(xtxi)) * sigma.x
+errors.y <- sqrt(diag(xtxi)) * sigma.y
 
 ## Empirical variance matrix
-var.X <- cov.wt(X.train, method = "ML")$cov
+var.X <- var(X.train)
 
 ## Empirical inverse variance matrix
 inv.var.X <- solve(var.X)
@@ -68,9 +92,40 @@ X.test.design <- as.matrix(cbind(ones, X.test))
 
 ## Make predictions on test set
 preds <- X.test.design %*% closed.B
+write.csv(preds, "predictions_llsp.csv", quote=F, row.names=F)
 
-## Calculate mean squared error (MSE)
-MSE <- (colSums((preds - Y.test) ^ 2)) / nrow(preds)
 
-# Calulate R^2
-sqrt(((500 * MSE) / (sum((Y.test - colMeans(Y.test))^2))))
+## Create residuals vs fitted plots
+model.x.wo.g <- lm(x ~ R + B, data=all.train)
+pdf("residuals_vs_fitted_x.pdf")
+plot(fitted(model.x.wo.g), residuals(model.x.wo.g),
+  xlab = "Fitted Values (x)", ylab = "Residuals", , cex.lab = 1.5)
+abline(h=0, lty=2)
+dev.off()
+
+pdf("residuals_vs_fitted_y.pdf")
+plot(fitted(model.y), residuals(model.y),
+  xlab = "Fitted Values (y)", ylab = "Residuals", cex.lab = 1.5)
+abline(h=0, lty=2)
+dev.off()
+
+## Create Q-Q norm plot
+x.stdres = rstandard(model.x.wo.g)
+pdf("qqnorm_x.pdf")
+qqnorm(x.stdres, 
+     ylab="Standardized Residuals", 
+     xlab="Normal Scores",
+     main="",
+     cex.lab=1.5) 
+qqline(x.stdres)
+dev.off()
+
+y.stdres = rstandard(model.y)
+pdf("qqnorm_y.pdf")
+qqnorm(y.stdres, 
+     ylab="Standardized Residuals", 
+     xlab="Normal Scores",
+     main="",
+     cex.lab=1.5) 
+qqline(y.stdres)
+dev.off()
