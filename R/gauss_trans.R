@@ -4,6 +4,7 @@ library(Rgraphviz)
 require(psych)
 require(ggplot2)
 require(PerformanceAnalytics)
+require(copula)
 source('extract_rgb.R')
 
 # Compare two Graphical models
@@ -55,91 +56,6 @@ all.vals$y <- all.vals$y * 480
 train.idx <- 1:500
 test.idx <- 501:1000
 
-## Split into training and test data
-X.train <- all.vals[train.idx, c("R", "G", "B")]
-X.test <- all.vals[test.idx, c("R", "G", "B")]
-Y.train <- as.matrix(all.vals[train.idx, c("x", "y")])
-Y.test <- as.matrix(all.vals[test.idx, c("x", "y")])
-all.train <- all.vals[train.idx, ]
-all.test <- all.vals[test.idx, ]
-
-## Z = (X, Y)
-Z.train <- all.vals[train.idx, ]
-Z.test <- all.vals[test.idx, ]
-
-## Saturated Gaussian model
-sat.Z <- cmod(~.^., data=Z.train)
-
-# Stepwise edge deletion
-# Perform Chi/-squared test (tested)
-test.Z <- stepwise(sat.Z,
-                   search="all",
-                   direction="backward",
-                   details=2,
-                   criterion="test")
-
-## Empirical variance matrix
-var.Z <- var(Z.train)
-
-# Fit using iterative proportional fitting
-Xfit1 <- ggmfit(var.Z, n=nrow(Z.train),
-                edgeList(as(test.Z, "graphNEL")))
-
-
-D <- Xfit1$K
-V <- solve(D)
-
-MS <- get_means(Z.train)
-VS <- get_partitions(V)
-
-## Make predictions on test set
-
-preds <- matrix( , nrow(X.test), ncol(Y.test)) 
-preds.train <- matrix( , nrow(X.train), ncol(Y.train)) 
-
-V.ba <- as.matrix(VS$V_ba)
-V.aa <- as.matrix(VS$V_aa)
-mu.a <- as.matrix(MS$mu_a)
-mu.b <- as.matrix(MS$mu_b)
-
-#####################
-## Test on training set
-#####################
-for (i in 1:nrow(X.train)) {
-    ## Mean given R, G, B
-    x.i <- t(as.matrix(X.train[i, ]))
-    E.b.given.a <- mu.b +
-        V.ba %*% solve(V.aa) %*% (x.i - mu.a)
-    preds.train[i, ] <- E.b.given.a
-}
-
-## Error
-err <- preds.train - Y.train
-colnames(preds.train) <- c("x", "y")
-write.csv(preds.train, "predictions_ggm_train.csv", quote=F, row.names=F)
-
-#####################
-## Test on test set
-#####################
-for (i in 1:nrow(X.test)) {
-    ## Mean given R, G, B
-    x.i <- t(as.matrix(X.test[i, ]))
-    E.b.given.a <- mu.b +
-        V.ba %*% solve(V.aa) %*% (x.i - mu.a)
-    preds[i, ] <- E.b.given.a
-}
-
-## Error
-err <- preds - Y.test
-colnames(preds) <- c("x", "y")
-write.csv(preds, "predictions_ggm.csv", quote=F, row.names=F)
-
-comparemodels(sat.Z, test.Z)
-
-## Variance given R, G, B
-##var_b_given_a <- VS$V_bb - VS$V_ba %*% solve(VS$V_aa) %*% VS$V_ab
-
-
 ### Gauss with standard normal margins on R,G, B
 all.uniform.RGB <- pobs(as.matrix(all.vals[, c("R", "G", "B")]))
 R.gauss <- qnorm(all.uniform.RGB[, "R"])
@@ -165,7 +81,7 @@ var.trans <- var(X.train.trans)
 
 # Fit using iterative proportional fitting
 Xfit.trans <- ggmfit(var.trans, n=nrow(X.train.trans),
-                edgeList(as(test.=trans, "graphNEL")))
+                edgeList(as(test.trans, "graphNEL")))
 
 
 D.trans <- Xfit.trans$K
@@ -185,7 +101,7 @@ mu.b <- as.matrix(MS.trans$mu_b)
 
 for (i in 1:nrow(X.test.trans)) {
     ## Mean given R, G, B
-    x.i <- t(as.matrix(X.test[i, c("R", "G", "B")]))
+    x.i <- t(as.matrix(X.test.trans[i, c("R.gauss", "G.gauss", "B.gauss")]))
     E.b.given.a <- mu.b +
         V.ba %*% solve(V.aa) %*% (x.i - mu.a)
     preds.trans[i, ] <- E.b.given.a
@@ -196,26 +112,19 @@ err <- preds.trans - X.test.trans[, c("x", "y")]
 colnames(preds.trans) <- c("x", "y")
 write.csv(preds.trans, "predictions_ggm.trans.csv", quote=F, row.names=F)
 
+## Make predictions on training set
 
+preds.trans.train <- matrix( , nrow(X.train.trans), 2) 
 
+for (i in 1:nrow(X.train.trans)) {
+    ## Mean given R, G, B
+    x.i <- t(as.matrix(X.train.trans[i, c("R.gauss", "G.gauss", "B.gauss")]))
+    E.b.given.a <- mu.b +
+        V.ba %*% solve(V.aa) %*% (x.i - mu.a)
+    preds.trans.train[i, ] <- E.b.given.a
+}
 
-### Plots ###
-## Scattermatrix
-pdf('scattermatrix_final.pdf')
-## Plot scattermatrix
-pairs.panels(all.vals[train.idx, ], method="spearman", hist.col='gray',
-             lm=T, pch='+', ellipses=F, smooth=F)
-dev.off()
-
-
-pdf('scattermatrix_normal.pdf')
-## Plot scattermatrix
-pairs.panels(X.train.trans, method="spearman", hist.col='gray',
-             lm=T, pch='+', ellipses=F, smooth=F)
-dev.off()
-
-
-## Plot graphical model
-pdf('../../report/img/ggm.pdf')
-plot(test.Z)
-dev.off()
+## Error
+err <- preds.trans.train - X.train.trans[, c("x", "y")]
+colnames(preds.trans.train) <- c("x", "y")
+write.csv(preds.trans.train, "predictions_ggm_train.trans.csv", quote=F, row.names=F)

@@ -1,13 +1,21 @@
 require(copula)
-require(VineCopula)
+#require(VineCopula)
 require(matlab)
 require(psych)
 require(lattice)
 require(fitdistrplus)
 require(gRbase)
+require(devtools)
 source('extract_rgb.R')
 
+
+dev_mode(on = T)
+install_github("pold87/VineCopula")
+
+library(VineCopula)
+
 read.from.csv <- TRUE
+
 
 ## Read data (R, G, B, x, y)
 if (read.from.csv) {
@@ -61,6 +69,10 @@ rvm <- RVineStructureSelect(X.train.cop, selectioncrit="logLik",
                             indeptest=TRUE, level=0.05,
                             familyset=NA)
 
+## Fit copula model to training dataset
+rvm.sat <- RVineStructureSelect(X.train.cop, selectioncrit="logLik",
+                            familyset=NA)
+
 
 ## Make predictions
 
@@ -72,9 +84,8 @@ construct.img <- function(val, x.max=640, y.max=480) {
 imagesc(img)
 
 
-## TODO: print coordinates of maximum value
-file.remove("predictions.csv")
-file.remove("pdfs/*")
+##file.remove("predictions.csv")
+##file.remove("pdfs/*")
 x.max = 640
 y.max = 480
 N.test = 500
@@ -83,7 +94,7 @@ xy <- expand.grid(1:x.max, 1:y.max)
 xy.df <- data.frame(x = pnorm(xy[, 1], mu.x, std.x),
                     y = pnorm(xy[, 2], mu.x, std.x))
 
-##
+## TEST SET
 for (i in 1:N.test) {
   R = X.test.cop[i, "R"]
   G = X.test.cop[i, "G"]
@@ -126,6 +137,49 @@ for (i in 1:N.test) {
   ##
 }
 
+N.train = 500
+## TRAIN SET 
+for (i in 1:N.train) {
+  R = X.train.cop[i, "R"]
+  G = X.train.cop[i, "G"]
+  B = X.train.cop[i, "B"]
+  #
+  R.all <- rep(R, nrow(xy.df))
+  G.all <- rep(G, nrow(xy.df))
+  B.all <- rep(B, nrow(xy.df))
+  #
+  df <- xy.df
+  df$R <- R.all
+  df$G <- G.all
+  df$B <- B.all
+  #
+  colnames(df) <- c("x", "y", "R", "G", "B")
+  df <- df[c("R", "G", "B", "x", "y")]
+  #
+  val <- RVinePDF(df, rvm)
+  ## Save density to file (for later visualization) 
+  fn <- sprintf("pdfs_train/%d.csv", i)
+  write.csv(val, fn, quote=FALSE,
+            row.names=FALSE)
+  ##
+  ##img <- construct.img(val)
+  ##
+  ## Find point estimate
+  idx <- which.max(val)
+  row <- df[idx, ]
+  pos.x <- qnorm(row$x, mu.x, std.x)
+  pos.y <- qnorm(row$y, mu.y, std.y)
+  ##
+  ## Save to predictions file
+  ##
+  write.table(t(as.matrix(c(pos.x, pos.y))),
+            file="predictions_cop_train.csv", append = TRUE, sep=",",
+            quote=FALSE, col.names=FALSE,
+            row.names=FALSE)
+  print(sprintf("preds are x: %f, y: %f, ground truth is x: %f, y: %f\n",
+                pos.x, pos.y, X.train[i,"x"], X.train[i,"y"]))
+  ##
+}
 
 
 ## Plots

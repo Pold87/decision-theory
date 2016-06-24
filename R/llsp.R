@@ -13,11 +13,9 @@ if (read.from.csv) {
     all.vals <- extract.rgb('rainbow2', write2csv = T)
 }
 
+## Transform x, y coordinates to pixel position
 all.vals$x <- all.vals$x * 640
 all.vals$y <- all.vals$y * 480
-
-## Write for reporr
-#write.csv(round(all.vals, 2), "for_report.csv", row.names=F, quote=F)
 
 ## Create training and test indices
 train.idx <- 1:500
@@ -37,6 +35,8 @@ model <- lm(cbind(x, y) ~ R + G + B, data=all.train)
 ## Fit separately for POS_x and POS_y
 model.x <- lm(x ~ R + G + B, data=all.train)
 model.y <- lm(y ~ R + G + B, data=all.train)
+## Model for POS_x without variable G
+model.x.wo.g <- lm(x ~ R + B, data=all.train)
 
 ## Manual calculations of model statistics
 sigma.x <- sqrt(sum(model.x$res^2) / (500 - 4))
@@ -94,9 +94,22 @@ X.test.design <- as.matrix(cbind(ones, X.test))
 preds <- X.test.design %*% closed.B
 write.csv(preds, "predictions_llsp.csv", quote=F, row.names=F)
 
+## Make predictions on train set
+preds.train.x <- predict(model.x.wo.g, newdata = all.train)
+preds.train.y <- predict(model.y, newdata = all.train)
+preds.train <- cbind(preds.train.x, preds.train.y)
+colnames(preds.train) <- c("x", "y")
+write.csv(preds.train, "predictions_llsp_train.csv", quote=F, row.names=F)
 
+## Make predictions using the baseline only
+preds.baseline <- data.frame(x = rep(317.646, nrow(X.train)),
+                             y = rep(241.76, nrow(X.train)))
+write.csv(preds.baseline, "predictions_baseline.csv", quote=F, row.names=F)
+
+###########
+## PLOTS ##
+###########
 ## Create residuals vs fitted plots
-model.x.wo.g <- lm(x ~ R + B, data=all.train)
 pdf("residuals_vs_fitted_x.pdf")
 plot(fitted(model.x.wo.g), residuals(model.x.wo.g),
   xlab = "Fitted Values (x)", ylab = "Residuals", , cex.lab = 1.5)
